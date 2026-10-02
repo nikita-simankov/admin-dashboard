@@ -45,7 +45,7 @@ export function Progress({ openDate, go, header }: { openDate: (d: ISODate) => v
         <Tile k="День" v={Math.min(currentDay, TOTAL_DAYS)} of={TOTAL_DAYS} />
         <Tile k="Полных дней" v={full} of={Math.max(currentDay, 1)} variant="ok" sub={streak > 0 ? `серия ${streak}` : undefined} />
         <Tile k="Страниц" v={pages} of={PAGES_TARGET} variant="blue" />
-        <Tile k="Откликов" v={apps} of={APPS_TARGET} onClick={() => go('career')} />
+        <Tile k="Откликов" v={apps} of={APPS_TARGET} onClick={() => go('growth')} />
       </div>
 
       <div className="cols">

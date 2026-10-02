@@ -1,16 +1,20 @@
 import { useMemo, useState } from 'react';
 import {
-  EXERCISES, RECOVERY, STAGE_NAMES, TOTAL_DAYS, TRAINING_NOTES, WORKOUT_HINT, WORKOUT_NAMES, workoutForDay,
-  type Exercise, type Stage, type WorkoutType,
+  EQUIPMENT, EXERCISES, RECOVERY, STAGE_LABEL, STAGE_NAMES, TOTAL_DAYS, TRAINING_NOTES, WORKOUT_HINT, WORKOUT_NAMES,
+  workoutForDay, type Exercise, type Stage, type WorkoutType,
 } from '../data/plan';
+import type { AnimId } from '../data/animations';
 import { dayKey, dayNumber, emptyDay, useChallenge, type DayLog } from '../lib/challenge';
 import { formatDM, formatLong, today, type ISODate } from '../lib/date';
 import { setRecord, useData, useRecord } from '../lib/store';
 import { startTimer } from '../components/Timer';
+import { Sheet } from '../components/Sheet';
+import { ExerciseAnim } from '../components/ExerciseAnim';
 import { IconCheck, IconTimer } from '../components/Icons';
 
-type SetLog = { w?: string; r?: string };
+type SetLog = { r?: string };
 type WorkoutLog = Record<string, SetLog[]>;
+type HowTo = { name: string; scheme: string; note?: string; anim: AnimId; cues: string[]; minutes?: number };
 
 const TYPES: WorkoutType[] = ['push', 'pull', 'legs', 'recovery'];
 
@@ -20,6 +24,7 @@ export function Workout({ date, header }: { date: ISODate; header: React.ReactNo
   const planned = workoutForDay(Math.min(Math.max(dn ?? 1, 1), TOTAL_DAYS));
   const [type, setType] = useState<WorkoutType>(planned.type);
   const [stage, setStage] = useState<Stage>(planned.stage);
+  const [howTo, setHowTo] = useState<HowTo | null>(null);
   const [log, setLog] = useRecord<WorkoutLog>(`wo:${date}`, {});
   const data = useData();
   const dayLog: DayLog = view.logFor(date);
@@ -31,19 +36,18 @@ export function Workout({ date, header }: { date: ISODate; header: React.ReactNo
     const out: Record<string, { date: string; sets: SetLog[] }> = {};
     const prior = Object.keys(data).filter((k) => k.startsWith('wo:') && k.slice(3) < date).sort().reverse();
     for (const k of prior) {
-      const wl = data[k].v as WorkoutLog;
-      for (const [id, sets] of Object.entries(wl)) {
-        if (!out[id] && sets.some((s) => s.r || s.w)) out[id] = { date: k.slice(3), sets };
+      for (const [id, sets] of Object.entries(data[k].v as WorkoutLog)) {
+        if (!out[id] && sets.some((s) => s.r)) out[id] = { date: k.slice(3), sets };
       }
     }
     return out;
   }, [data, date]);
 
   const exercises = type === 'recovery' ? [] : EXERCISES[stage][type];
-  const setSet = (ex: Exercise, i: number, patch: SetLog) =>
+  const setReps = (ex: Exercise, i: number, r: string) =>
     setLog((prev) => {
       const sets = Array.from({ length: ex.sets }, (_, j) => prev[ex.id]?.[j] ?? {});
-      sets[i] = { ...sets[i], ...patch };
+      sets[i] = { r };
       return { ...prev, [ex.id]: sets };
     });
   const markDone = () => setRecord(dayKey(date), { ...emptyDay(), ...dayLog, done: { ...dayLog.done, w1: !w1Done } });
@@ -68,10 +72,8 @@ export function Workout({ date, header }: { date: ISODate; header: React.ReactNo
       </div>
       {type !== 'recovery' && (
         <div className="seg" role="group" aria-label="Этап">
-          {(['home', 'gym'] as Stage[]).map((s) => (
-            <button key={s} aria-pressed={stage === s} onClick={() => setStage(s)}>
-              Этап {s === 'home' ? '1 · дом и турники' : '2 · спортзал'}
-            </button>
+          {(['base', 'advanced'] as Stage[]).map((s) => (
+            <button key={s} aria-pressed={stage === s} onClick={() => setStage(s)}>{STAGE_LABEL[s]}</button>
           ))}
         </div>
       )}
@@ -82,56 +84,55 @@ export function Workout({ date, header }: { date: ISODate; header: React.ReactNo
             <h2>{WORKOUT_NAMES[type]}{type !== 'recovery' && ` · ${STAGE_NAMES[stage]}`}</h2>
             <span className="chip">{WORKOUT_HINT[type]}</span>
           </div>
-          <p className="tiny">{type === 'recovery' ? 'Воскресенье, оба этапа.' : 'Отдых между подходами 60–90 секунд. Записывай веса и повторения после каждого подхода.'}</p>
+          <p className="tiny">
+            {type === 'recovery' ? 'Воскресенье, оба этапа.' : 'Отдых между подходами 60–90 секунд. Нажми на анимацию, чтобы посмотреть технику.'}
+          </p>
         </div>
 
         {type === 'recovery'
           ? RECOVERY.map((r) => (
               <div className="ex" key={r.id}>
-                <div className="ex-head">
-                  <div className="ex-name">{r.name}</div>
-                  <div className="ex-scheme">{r.duration}</div>
-                </div>
-                <div className="inline-controls">
-                  <button className="pill-btn" onClick={() => startTimer(r.name, parseInt(r.duration, 10))}><IconTimer /> Таймер</button>
-                </div>
+                  <button className="ex-anim" onClick={() => setHowTo({ name: r.name, scheme: r.duration, anim: r.anim, cues: r.cues, minutes: r.minutes })} aria-label={`Техника: ${r.name}`}>
+                    <ExerciseAnim id={r.anim} label={r.name} />
+                  </button>
+                  <div className="ex-info">
+                    <div className="ex-name">{r.name}</div>
+                    <div className="ex-scheme">{r.duration}</div>
+                    <div className="inline-controls">
+                      <button className="pill-btn" onClick={() => startTimer(r.name, r.minutes)}><IconTimer /> Таймер</button>
+                    </div>
+                  </div>
               </div>
             ))
           : exercises.map((ex) => {
               const last = history[ex.id];
               const sets = log[ex.id] ?? [];
               const hit = !!ex.top && !!last && last.sets.length >= ex.sets && last.sets.slice(0, ex.sets).every((s) => Number(s.r) >= ex.top!);
+              const unit = ex.unit === 'сек' ? 'сек' : 'повт';
               return (
                 <div className="ex" key={ex.id}>
-                  <div className="ex-head">
-                    <div className="ex-name">{ex.name}</div>
-                    <div className="ex-scheme">{ex.sets} × {ex.reps}</div>
-                  </div>
-                  {ex.note && <div className="tiny" style={{ marginTop: 2 }}>{ex.note}</div>}
-                  {last && (
-                    <div className="ex-last">
-                      {formatDM(last.date)}: {last.sets.filter((s) => s.r || s.w).map((s) => (s.w ? `${s.w}×${s.r || '–'}` : s.r)).join(', ')}
-                      {hit && <span className="chip ok" style={{ marginLeft: 6 }}>{stage === 'gym' ? 'Добавь вес' : 'Усложни вариант'}</span>}
-                    </div>
-                  )}
-                  <div className={`sets${ex.weighted ? ' weighted' : ''}`}>
-                    {Array.from({ length: ex.sets }, (_, i) => {
-                      const prev = last?.sets[i];
-                      return (
-                        <div className="set" key={i}>
-                          <label>Подход {i + 1}</label>
-                          <div className="x">
-                            {ex.weighted && (
-                              <input inputMode="decimal" aria-label={`${ex.name}, подход ${i + 1}, вес кг`} placeholder={prev?.w || 'кг'}
-                                value={sets[i]?.w ?? ''} onChange={(e) => setSet(ex, i, { w: e.target.value })} />
-                            )}
-                            <input inputMode="numeric" aria-label={`${ex.name}, подход ${i + 1}, ${ex.unit === 'сек' ? 'секунд' : 'повторений'}`}
-                              placeholder={prev?.r || (ex.unit === 'сек' ? 'сек' : 'повт')}
-                              value={sets[i]?.r ?? ''} onChange={(e) => setSet(ex, i, { r: e.target.value })} />
-                          </div>
+                    <button className="ex-anim" onClick={() => setHowTo({ name: ex.name, scheme: `${ex.sets} × ${ex.reps}`, note: ex.note, anim: ex.anim, cues: ex.cues })} aria-label={`Техника: ${ex.name}`}>
+                      <ExerciseAnim id={ex.anim} label={ex.name} />
+                    </button>
+                    <div className="ex-info">
+                      <div className="ex-name">{ex.name}</div>
+                      <div className="ex-scheme">{ex.sets} × {ex.reps}</div>
+                      {ex.note && <div className="tiny">{ex.note}</div>}
+                      {last && (
+                        <div className="ex-last">
+                          {formatDM(last.date)}: {last.sets.filter((s) => s.r).map((s) => s.r).join(', ')}
+                          {hit && <span className="chip ok" style={{ marginLeft: 6 }}>Усложни вариант</span>}
                         </div>
-                      );
-                    })}
+                      )}
+                    </div>
+                  <div className="sets">
+                    {Array.from({ length: ex.sets }, (_, i) => (
+                      <label className="set" key={i}>
+                        <span>Подход {i + 1}</span>
+                        <input inputMode="numeric" aria-label={`${ex.name}, подход ${i + 1}, ${unit}`}
+                          placeholder={last?.sets[i]?.r || unit} value={sets[i]?.r ?? ''} onChange={(e) => setReps(ex, i, e.target.value)} />
+                      </label>
+                    ))}
                   </div>
                 </div>
               );
@@ -148,10 +149,32 @@ export function Workout({ date, header }: { date: ISODate; header: React.ReactNo
 
       <section className="card">
         <div className="card-title"><h2>Принципы</h2></div>
+        <p className="small" style={{ marginBottom: 10 }}><b>Инвентарь.</b> <span className="muted">{EQUIPMENT}</span></p>
         <ul className="ref-list small">
           {TRAINING_NOTES.map((n) => <li key={n}>{n}</li>)}
         </ul>
       </section>
+
+      {howTo && (
+        <Sheet onClose={() => setHowTo(null)} label={howTo.name}>
+          <div className="howto-anim"><ExerciseAnim id={howTo.anim} label={howTo.name} /></div>
+          <h2>{howTo.name}</h2>
+          <div className="row" style={{ marginBottom: 12 }}>
+            <span className="chip accent">{howTo.scheme}</span>
+            {!howTo.minutes && <span className="chip">отдых 60–90 с</span>}
+          </div>
+          {howTo.note && <p className="small muted" style={{ marginBottom: 12 }}>{howTo.note}</p>}
+          <ol className="ref-list numbered small">
+            {howTo.cues.map((c) => <li key={c}><span>{c}</span></li>)}
+          </ol>
+          <div className="row" style={{ marginTop: 18 }}>
+            <button className="btn" onClick={() => startTimer(howTo.minutes ? howTo.name : 'Отдых', howTo.minutes ?? 1.5)}>
+              <IconTimer /> {howTo.minutes ? `Таймер ${howTo.minutes} мин` : 'Отдых 90 с'}
+            </button>
+            <button className="btn ghost" onClick={() => setHowTo(null)}>Закрыть</button>
+          </div>
+        </Sheet>
+      )}
     </div>
   );
 }

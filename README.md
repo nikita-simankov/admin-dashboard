@@ -3,9 +3,9 @@
 Personal tracker for the 90 HARD challenge (Oct 5, 2026 – Jan 2, 2027). It's a mobile-first PWA that also has a desktop layout, and it syncs between devices.
 
 - **Today**: the 9 daily rules (water and pages counters, 4 meals), timers for the workouts and focus hour, the day's plan (workout + focus-hour task), the evening entry and the task for tomorrow. On Sundays it also shows the weekly review.
-- **Workout**: the session for the plan day (stage 1 home / stage 2 gym), logging of weights and reps, the previous session's results, a "add weight / make it harder" hint, and a 90-second rest timer.
+- **Workout**: calisthenics only (floor, pull-up bar, parallel bars, bench). Every exercise has a looping animation and a sheet with technique cues. Stage 1 is the base program (days 1–16), stage 2 has harder progressions (from day 17). You log reps per set, see the previous session's results, get a "make it harder" hint, and have a 90-second rest timer.
 - **Progress**: a 90-day grid, stats (complete days, pages /900, applications /50), the 90-day goals, a body-weight chart, the weekly reviews and the history of attempts.
-- **Career**: the 13-week track, the applications table with statuses, and the reading list.
+- **Growth** ("Развитие"): a library of 52 books across 8 life areas (habits, mental health, body, finance, relationships, career, business, thinking), plus your own books. Also a portfolio of personal projects with a readiness checklist, the applications table, and the 13-week track. Projects are data you enter in the app, not code; the focus task for any day can be rewritten on the Today screen.
 - **Plan**: the rules, daily routine, evening rules, clarifications, nutrition, and settings (start date, JSON export/import).
 - **Restart and pause**: "I slipped" starts a new attempt from day 1 and records the reason. "Sick — pause" freezes the day counter without resetting it.
 

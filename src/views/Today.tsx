@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import {
-  EVENING_RULES, FOCUS, MEALS, MOTTO, PAGES_GOAL, RELAPSE, RULES, STAGE_NAMES, TOTAL_DAYS,
+  EVENING_RULES, FOCUS, MEALS, MOTTO, PAGES_GOAL, RELAPSE, RULES, STAGE_LABEL, STAGE_NAMES, TOTAL_DAYS,
   WATER_GOAL, WATER_MAX, WEEKS, WORKOUT_NAMES, isDeepWorkDay, isReviewDay, weekOfDay, workoutForDay, type RuleId,
 } from '../data/plan';
 import {
   dayKey, dayNumber, doneCount, emptyDay, isPaused, openDays, ruleDone, useChallenge, type DayLog, type Settings,
 } from '../lib/challenge';
 import { addDays, diffDays, formatLong, formatShort, plural, today, type ISODate } from '../lib/date';
-import { getRecord, setRecord } from '../lib/store';
+import { getRecord, setRecord, useRecord } from '../lib/store';
 import { ReviewForm } from './Progress';
 import { Ring } from '../components/Ring';
 import { Sheet } from '../components/Sheet';
 import { startTimer } from '../components/Timer';
 import {
   IconAlert, IconBook, IconCheck, IconChevronL, IconChevronR, IconDrop, IconDumbbell, IconMinus, IconPause, IconPlus,
-  IconRefresh, IconTarget, IconTimer,
+  IconEdit, IconRefresh, IconTarget, IconTimer,
 } from '../components/Icons';
 import type { Tab } from '../App';
 
@@ -114,7 +114,7 @@ export function Today({ date, setDate, go, header }: Props) {
                 </label>
                 <label className="field">
                   <span>Главная задача на завтра</span>
-                  <input className="input" value={log.tomorrow} placeholder={dn! < TOTAL_DAYS ? FOCUS[dn!] : ''} onChange={(e) => update({ tomorrow: e.target.value })} />
+                  <input className="input" value={log.tomorrow} placeholder={dn! < TOTAL_DAYS ? focusFor(dn! + 1) : ''} onChange={(e) => update({ tomorrow: e.target.value })} />
                 </label>
                 <div className="form-grid two">
                   <label className="field">
@@ -200,7 +200,7 @@ function Hero(props: { date: ISODate; dn: number | null; paused: boolean; before
         <div className="hero-day">День {dn} <small>/ 90</small></div>
         <div className="hero-meta">{done === 9 ? 'Все правила выполнены. Отбой в 22:00.' : `Осталось ${9 - done} ${plural(9 - done, 'правило', 'правила', 'правил')}`}</div>
         <div className="chips">
-          <span className="chip accent">Этап {stage === 'home' ? 1 : 2} · {STAGE_NAMES[stage]}</span>
+          <span className="chip accent">{STAGE_LABEL[stage]}</span>
           <span className="chip">{Math.round((dn / TOTAL_DAYS) * 100)}% пути</span>
         </div>
       </div>
@@ -208,6 +208,44 @@ function Hero(props: { date: ISODate; dn: number | null; paused: boolean; before
         <b>{done}</b><span>из 9</span>
       </Ring>
     </section>
+  );
+}
+
+/** Focus task for a plan day: the user's own wording if set, otherwise the plan's. */
+function focusFor(day: number): string {
+  return getRecord<string>(`focus:${day}`, '') || FOCUS[day - 1];
+}
+
+function FocusRow({ day, deep }: { day: number; deep: boolean }) {
+  const [custom, setCustom] = useRecord<string>(`focus:${day}`, '');
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const text = (custom || FOCUS[day - 1]).replace(/^3 часа: /, '');
+  const save = () => { setCustom(draft.trim() === FOCUS[day - 1] ? '' : draft.trim()); setEditing(false); };
+  return (
+    <div className="plan-row">
+      <span className="plan-icon blue"><IconTarget /></span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span className="label">{deep ? 'Глубокая работа · 3 часа' : 'Фокус-час · 60 минут'}{custom && ' · своя задача'}</span>
+        {editing ? (
+          <form className="form-grid" style={{ marginTop: 6 }} onSubmit={(e) => { e.preventDefault(); save(); }}>
+            <textarea className="textarea" rows={2} value={draft} autoFocus onChange={(e) => setDraft(e.target.value)} />
+            <div className="row">
+              <button className="pill-btn accent" type="submit">Сохранить</button>
+              {custom && <button className="pill-btn" type="button" onClick={() => { setCustom(''); setEditing(false); }}>Вернуть из плана</button>}
+              <button className="pill-btn" type="button" onClick={() => setEditing(false)}>Отмена</button>
+            </div>
+          </form>
+        ) : (
+          <span className="value" style={{ display: 'block' }}>{text}</span>
+        )}
+      </span>
+      {!editing && (
+        <button className="icon-btn" aria-label="Изменить задачу фокус-часа" onClick={() => { setDraft(custom || FOCUS[day - 1]); setEditing(true); }}>
+          <IconEdit width={18} />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -225,13 +263,7 @@ function DayPlan({ day, go, carried }: { day: number; go: (t: Tab) => void; carr
         </span>
         <IconChevronR style={{ width: 20, color: 'var(--text-3)', alignSelf: 'center' }} />
       </button>
-      <div className="plan-row">
-        <span className="plan-icon blue"><IconTarget /></span>
-        <span style={{ flex: 1 }}>
-          <span className="label">{deep ? 'Глубокая работа · 3 часа' : 'Фокус-час · 60 минут'}</span>
-          <span className="value" style={{ display: 'block' }}>{FOCUS[day - 1].replace(/^3 часа: /, '')}</span>
-        </span>
-      </div>
+      <FocusRow day={day} deep={deep} />
       {carried && (
         <div className="plan-row">
           <span className="plan-icon ok"><IconCheck /></span>

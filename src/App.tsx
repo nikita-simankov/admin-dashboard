@@ -4,18 +4,18 @@ import { today, type ISODate } from './lib/date';
 import { Today } from './views/Today';
 import { Workout } from './views/Workout';
 import { Progress } from './views/Progress';
-import { Career } from './views/Career';
+import { Growth } from './views/Growth';
 import { Plan } from './views/Plan';
 import { TimerPill } from './components/Timer';
 import { IconBook, IconBriefcase, IconChart, IconDumbbell, IconToday } from './components/Icons';
 
-export type Tab = 'today' | 'workout' | 'progress' | 'career' | 'plan';
+export type Tab = 'today' | 'workout' | 'progress' | 'growth' | 'plan';
 
 const TABS: { id: Tab; label: string; Icon: typeof IconToday }[] = [
   { id: 'today', label: 'Сегодня', Icon: IconToday },
   { id: 'workout', label: 'Тренировка', Icon: IconDumbbell },
   { id: 'progress', label: 'Прогресс', Icon: IconChart },
-  { id: 'career', label: 'Карьера', Icon: IconBriefcase },
+  { id: 'growth', label: 'Развитие', Icon: IconBriefcase },
   { id: 'plan', label: 'План', Icon: IconBook },
 ];
 
@@ -82,7 +82,7 @@ export function App() {
         {tab === 'today' && <Today date={date} setDate={setDate} go={go} header={sync} />}
         {tab === 'workout' && <Workout key={date} date={date} header={sync} />}
         {tab === 'progress' && <Progress openDate={openDate} go={go} header={sync} />}
-        {tab === 'career' && <Career header={sync} />}
+        {tab === 'growth' && <Growth header={sync} />}
         {tab === 'plan' && <Plan header={sync} />}
       </main>
 
