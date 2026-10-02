@@ -1,14 +1,13 @@
 // A single global countdown (focus hour, workout, rest). Kept in localStorage
 // as an absolute end time, so it survives reloads and backgrounding.
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { IconCheck, IconPause, IconPlay, IconX } from './Icons';
+import { IconPause, IconPlay, IconX } from './Icons';
 
 export type TimerState = {
   label: string;
   duration: number; // ms
   endsAt?: number; // set while running
   left?: number; // set while paused
-  onDone?: () => void;
 };
 
 const LS = 'h90:timer';
@@ -66,17 +65,13 @@ export function TimerPill() {
 
   if (!t) return null;
   return (
-    <div className={`timer-pill glass${finished ? ' done' : ''}`} role="timer" aria-live="polite">
-      <div>
-        <b>{finished ? 'Готово' : fmt(left)}</b>
-        <div className="tiny">{t.label}</div>
-      </div>
+    <div className={`timer${finished ? ' done' : ''}`} role="timer" aria-live="polite">
+      <b>{finished ? 'Готово' : fmt(left)}</b>
+      <span className="label">{t.label}</span>
       {finished ? (
         <>
           {doneHandler && (
-            <button className="pill-btn on" onClick={() => { doneHandler?.(); stopTimer(); }}>
-              <IconCheck /> Отметить
-            </button>
+            <button className="btn small gold" onClick={() => { doneHandler?.(); stopTimer(); }}>Отметить</button>
           )}
           <button className="icon-btn" aria-label="Закрыть таймер" onClick={stopTimer}><IconX /></button>
         </>

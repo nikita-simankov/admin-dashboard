@@ -165,13 +165,13 @@ export function frameBox(anim: Anim): Box {
     else if (p.k === 'pbars') { take(p.x1, p.y); take(p.x2, p.y); }
     else { take(p.x, p.y); take(p.x + p.w, p.y + ('h' in p ? p.h : 0)); }
   }
-  if (floor) y1 = Math.max(y1, FLOOR + 2);
+  if (floor) y1 = Math.max(y1, FLOOR + 8);
   const pad = 8;
   let w = x1 - x0 + pad * 2, h = y1 - y0 + pad * 2;
   // Keep a 4:3 frame and never zoom in more than ~1.6× so figures stay comparable.
   w = Math.max(w, h * (4 / 3), 100);
   h = w * (3 / 4);
   const cx = (x0 + x1) / 2;
-  const bottom = floor ? FLOOR + 6 : y1 + pad;
+  const bottom = floor ? FLOOR + 10 : y1 + pad;
   return { x: cx - w / 2, y: Math.min(bottom - h, y0 - pad), w, h };
 }

@@ -3,10 +3,10 @@ import { APPS_TARGET, EVENING_RULES, GOALS, PAGES_TARGET, REVIEW_QUESTIONS, TOTA
 import { doneCount, isComplete, useChallenge } from '../lib/challenge';
 import { formatDM, formatShort, today, type ISODate } from '../lib/date';
 import { useData, useRecord } from '../lib/store';
-import { IconCheck, IconChevronR } from '../components/Icons';
-import type { Tab } from '../App';
+import { PageHeader, toRoman } from '../components/Ornaments';
+import { IconPlus } from '../components/Icons';
 
-export function Progress({ openDate, go, header }: { openDate: (d: ISODate) => void; go: (t: Tab) => void; header: React.ReactNode }) {
+export function Progress({ openDate, sync }: { openDate: (d: ISODate) => void; sync: React.ReactNode }) {
   const view = useChallenge();
   const data = useData();
   const now = today();
@@ -14,13 +14,8 @@ export function Progress({ openDate, go, header }: { openDate: (d: ISODate) => v
 
   const elapsed = dates.filter((d) => d <= now);
   const full = elapsed.filter((d) => isComplete(view.logFor(d))).length;
-  const currentDay = elapsed.length;
-  let streak = 0;
-  for (let i = elapsed.length - 1; i >= 0; i--) {
-    const ok = isComplete(view.logFor(elapsed[i]));
-    if (ok) streak++;
-    else if (elapsed[i] !== now) break; // today may still be in progress
-  }
+  const todayIdx = dates.indexOf(now);
+  const currentWeek = todayIdx >= 0 ? Math.floor(todayIdx / 7) : -1;
 
   // Pages and weight across every logged day, not just this attempt.
   let pages = 0;
@@ -35,67 +30,69 @@ export function Progress({ openDate, go, header }: { openDate: (d: ISODate) => v
   const apps = ((data.apps?.v as unknown[]) ?? []).length;
 
   return (
-    <div className="page">
-      <header className="topbar glass">
-        <h1>Прогресс<span className="sub">Попытка {settings.attempts.length} · старт {formatDM(attempt.start)}</span></h1>
-        {header}
-      </header>
+    <div className="page wide">
+      <PageHeader over={<>Попытка {toRoman(settings.attempts.length)} · с {formatDM(attempt.start)}{sync}</>} title="Летопись" />
 
-      <div className="tiles">
-        <Tile k="День" v={Math.min(currentDay, TOTAL_DAYS)} of={TOTAL_DAYS} />
-        <Tile k="Полных дней" v={full} of={Math.max(currentDay, 1)} variant="ok" sub={streak > 0 ? `серия ${streak}` : undefined} />
-        <Tile k="Страниц" v={pages} of={PAGES_TARGET} variant="blue" />
-        <Tile k="Откликов" v={apps} of={APPS_TARGET} onClick={() => go('growth')} />
+      <div className="stats">
+        <div className="stat"><b>{Math.min(elapsed.length, TOTAL_DAYS)}<small> / 90</small></b><span className="label">дней</span></div>
+        <div className="stat"><b>{full}</b><span className="label">полных</span></div>
+        <div className="stat"><b>{pages}<small> / {PAGES_TARGET}</small></b><span className="label">страниц</span></div>
+        <div className="stat"><b>{apps}<small> / {APPS_TARGET}</small></b><span className="label">откликов</span></div>
       </div>
 
       <div className="cols">
         <div className="stack">
-          <section className="card">
-            <div className="card-title"><h2>90 дней</h2><span className="tiny">Нажми на день, чтобы открыть</span></div>
-            <div className="grid90">
-              {Array.from({ length: TOTAL_DAYS }, (_, i) => {
-                const d = dates[i];
-                const n = d ? doneCount(view.logFor(d)) : 0;
-                const cls = !d || d > now ? '' : n === 9 ? 'full' : n > 0 || d < now ? 'part' : '';
-                return (
-                  <button key={i} className={`cell ${cls}${d === now ? ' today' : ''}`} title={d ? `День ${i + 1} · ${formatShort(d)} · ${n}/9` : `День ${i + 1}`}
-                    onClick={() => d && openDate(d)} aria-label={`День ${i + 1}${d ? `, ${formatShort(d)}, ${n} из 9` : ''}`}>
-                    {i + 1}
-                  </button>
-                );
-              })}
+          <section>
+            <h2 className="sh">Мозаика девяноста дней</h2>
+            <div className="mosaic">
+              {WEEKS.map((_, w) => (
+                <div key={w} className={`mosaic-row${w === currentWeek ? ' current' : ''}`}>
+                  <i>{toRoman(w + 1)}</i>
+                  {Array.from({ length: 7 }, (_, j) => {
+                    const i = w * 7 + j;
+                    if (i >= TOTAL_DAYS) return <span key={j} />;
+                    const d = dates[i];
+                    const n = d ? doneCount(view.logFor(d)) : 0;
+                    const cls = !d || d > now ? '' : n === 9 ? 'full' : d < now || n > 0 ? 'part' : '';
+                    return (
+                      <button key={j} className={`tile ${cls}${d === now ? ' today' : ''}`} onClick={() => d && openDate(d)}
+                        title={d ? `День ${i + 1} · ${formatShort(d)} · ${n}/9` : `День ${i + 1}`}
+                        aria-label={`День ${i + 1}${d ? `, ${formatShort(d)}, ${n} из 9` : ''}`} />
+                    );
+                  })}
+                </div>
+              ))}
             </div>
             <div className="legend">
-              <span><i style={{ background: 'var(--ok)' }} />Все 9 правил</span>
-              <span><i style={{ background: 'var(--warn-soft)', boxShadow: 'inset 0 0 0 1.5px var(--warn)' }} />Не закрыт</span>
-              <span><i style={{ background: 'var(--fill)', boxShadow: 'inset 0 0 0 2px var(--accent)' }} />Сегодня</span>
+              <span><i style={{ background: 'var(--gold)' }} />исполнен</span>
+              <span><i style={{ background: 'var(--terra-dim)', boxShadow: 'inset 0 0 0 1px rgba(200,106,60,.5)' }} />не закрыт</span>
             </div>
           </section>
-
-          <Reviews />
+          <Goals />
         </div>
 
         <div className="stack">
-          <Goals />
-          {weights.length > 0 && (
-            <section className="card">
-              <div className="card-title"><h2>Вес тела</h2><span className="chip">{weights[weights.length - 1].w} кг</span></div>
+          <Reviews currentWeek={currentWeek} />
+          {weights.length > 1 && (
+            <section>
+              <h2 className="sh">Вес тела</h2>
               <Spark points={weights.map((p) => p.w)} />
-              <div className="row tiny" style={{ marginTop: 6 }}>
-                <span>{formatDM(weights[0].d)} · {weights[0].w} кг</span><span className="spacer" />
-                {weights.length > 1 && <span>{(weights[weights.length - 1].w - weights[0].w > 0 ? '+' : '') + (weights[weights.length - 1].w - weights[0].w).toFixed(1)} кг</span>}
+              <div className="row tiny" style={{ marginTop: 8 }}>
+                <span>{formatDM(weights[0].d)} · {weights[0].w} кг</span>
+                <span className="spacer" />
+                <span>{formatDM(weights[weights.length - 1].d)} · {weights[weights.length - 1].w} кг</span>
               </div>
             </section>
           )}
           {settings.attempts.length > 1 && (
-            <section className="card flush">
-              <div className="card-title" style={{ padding: '16px 16px 0' }}><h2>Попытки</h2></div>
+            <section>
+              <h2 className="sh">Попытки</h2>
               <ul className="list">
                 {[...settings.attempts].reverse().map((a, i) => (
                   <li key={a.id}>
-                    <span className="num-badge">{settings.attempts.length - i}</span>
+                    <span className="rule-num">{toRoman(settings.attempts.length - i)}</span>
                     <div className="grow">
-                      <div className="title">{formatDM(a.start)}{a.end ? ` — ${formatDM(a.end)}` : ' — сейчас'}</div>
+                      <div className="title">{formatDM(a.start)}{a.end ? ` — ${formatDM(a.end)}` : ' — ныне'}</div>
                       {a.reason && <div className="meta">{a.reason}{a.lesson && ` → ${EVENING_RULES.find((r) => r.id === a.lesson)?.title ?? ''}`}</div>}
                     </div>
                   </li>
@@ -109,28 +106,16 @@ export function Progress({ openDate, go, header }: { openDate: (d: ISODate) => v
   );
 }
 
-function Tile({ k, v, of, variant, sub, onClick }: { k: string; v: number; of: number; variant?: 'ok' | 'blue'; sub?: string; onClick?: () => void }) {
-  const Tag = onClick ? 'button' : 'div';
-  return (
-    <Tag className="card tile" onClick={onClick} style={onClick ? { textAlign: 'left' } : undefined}>
-      <div className="k">{k}{sub && <span className="tiny"> · {sub}</span>}</div>
-      <div className="v">{v} <small>/ {of}</small></div>
-      <div className={`bar ${variant ?? ''}`}><i style={{ width: `${Math.min(100, (v / of) * 100)}%` }} /></div>
-    </Tag>
-  );
-}
-
 function Spark({ points }: { points: number[] }) {
-  if (points.length < 2) return <div className="tiny">Нужно минимум две записи веса.</div>;
   const min = Math.min(...points), max = Math.max(...points);
   const span = max - min || 1;
-  const W = 300, H = 64;
-  const xy = points.map((p, i) => [(i / (points.length - 1)) * W, H - 6 - ((p - min) / span) * (H - 12)]);
-  const d = xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const W = 300, H = 70;
+  const d = points
+    .map((p, i) => `${i ? 'L' : 'M'}${((i / (points.length - 1)) * W).toFixed(1)},${(H - 8 - ((p - min) / span) * (H - 16)).toFixed(1)}`)
+    .join(' ');
   return (
     <svg className="spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label="График веса тела">
-      <path d={`${d} L${W},${H} L0,${H} Z`} fill="var(--accent-soft)" />
-      <path d={d} fill="none" stroke="var(--accent)" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+      <path d={d} fill="none" stroke="var(--gold)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -138,16 +123,17 @@ function Spark({ points }: { points: number[] }) {
 function Goals() {
   const [done, setDone] = useRecord<Record<string, boolean>>('goals', {});
   return (
-    <section className="card flush">
-      <div className="card-title" style={{ padding: '16px 16px 0' }}><h2>Цели на 90 дней</h2><span className="chip">{Object.values(done).filter(Boolean).length}/{GOALS.length}</span></div>
+    <section>
+      <h2 className="sh">Цели на девяносто дней</h2>
       <ul className="list">
-        {GOALS.map((g) => (
-          <li key={g.id} style={{ cursor: 'pointer' }} onClick={() => setDone((p) => ({ ...p, [g.id]: !p[g.id] }))}>
-            <span className={`check${done[g.id] ? ' on' : ''}`} role="checkbox" aria-checked={!!done[g.id]} aria-label={g.text} tabIndex={0}
-              onKeyDown={(e) => (e.key === ' ' || e.key === 'Enter') && (e.preventDefault(), setDone((p) => ({ ...p, [g.id]: !p[g.id] })))}>
-              <IconCheck />
-            </span>
-            <div className="grow small" style={{ color: done[g.id] ? 'var(--text-2)' : undefined }}>{g.text}</div>
+        {GOALS.map((g, i) => (
+          <li key={g.id}>
+            <span className="rule-num">{toRoman(i + 1)}</span>
+            <div className="grow" style={{ color: done[g.id] ? 'var(--ink-3)' : undefined }}>{g.text}</div>
+            <button className={`seal${done[g.id] ? ' on' : ''}`} aria-pressed={!!done[g.id]} aria-label={g.text}
+              onClick={() => setDone((p) => ({ ...p, [g.id]: !p[g.id] }))}>
+              <span className="diamond" />
+            </button>
           </li>
         ))}
       </ul>
@@ -155,22 +141,25 @@ function Goals() {
   );
 }
 
-function Reviews() {
+function Reviews({ currentWeek }: { currentWeek: number }) {
   const data = useData();
   const [open, setOpen] = useState<number | null>(null);
   const written = WEEKS.map((_, i) => ((data[`review:${i + 1}`]?.v as string[] | undefined) ?? []).filter((s) => s?.trim()).length);
   return (
-    <section className="card flush">
-      <div className="card-title" style={{ padding: '16px 16px 0' }}><h2>Еженедельные разборы</h2></div>
+    <section>
+      <h2 className="sh">Разборы недель</h2>
       <ul className="list">
         {WEEKS.map((w, i) => (
-          <li key={w} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
-            <button className="row" style={{ textAlign: 'left', flexWrap: 'nowrap' }} onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}>
-              <span className="num-badge" style={written[i] ? { background: 'var(--ok-soft)', color: 'var(--ok)' } : undefined}>{i + 1}</span>
-              <span className="grow"><span className="title" style={{ display: 'block' }}>{w}</span><span className="meta">{written[i] ? `${written[i]} из 6 ответов` : 'Ещё не заполнен'}</span></span>
-              <IconChevronR style={{ width: 18, color: 'var(--text-3)', transform: open === i ? 'rotate(90deg)' : undefined, transition: 'transform .2s' }} />
+          <li key={w} className={`stack-item${i === currentWeek ? ' current' : ''}${written[i] === 6 ? ' past' : ''}`}>
+            <button className="row" style={{ textAlign: 'left', flexWrap: 'nowrap', width: '100%' }} onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}>
+              <span className="rule-num">{toRoman(i + 1)}</span>
+              <span className="grow">
+                <span className="title" style={{ display: 'block' }}>{w}</span>
+                <span className="meta">{written[i] ? `${written[i]} из 6 ответов` : 'не заполнен'}</span>
+              </span>
+              <IconPlus width={15} style={{ color: 'var(--ink-3)', transform: open === i ? 'rotate(45deg)' : undefined, transition: 'transform .3s', flexShrink: 0 }} />
             </button>
-            {open === i && <ReviewForm week={i + 1} />}
+            {open === i && <div style={{ paddingLeft: 48 }}><ReviewForm week={i + 1} /></div>}
           </li>
         ))}
       </ul>
@@ -181,11 +170,11 @@ function Reviews() {
 export function ReviewForm({ week }: { week: number }) {
   const [answers, setAnswers] = useRecord<string[]>(`review:${week}`, []);
   return (
-    <div className="form-grid">
+    <div className="form">
       {REVIEW_QUESTIONS.map((q, i) => (
         <label key={q} className="field">
-          <span>{i + 1}. {q}</span>
-          <textarea className="textarea" rows={2} value={answers[i] ?? ''}
+          <span className="italic muted" style={{ fontSize: 18 }}>{toRoman(i + 1)}. {q}</span>
+          <textarea rows={1} value={answers[i] ?? ''}
             onChange={(e) => setAnswers((prev) => { const next = [...prev]; next[i] = e.target.value; return next; })} />
         </label>
       ))}

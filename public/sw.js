@@ -1,6 +1,6 @@
 // App-shell service worker: network-first for pages, cache-first for hashed assets.
 // API calls are never cached — the app keeps its own offline copy in localStorage.
-const CACHE = 'h90-v1';
+const CACHE = 'h90-v2';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/', '/icon.svg', '/manifest.webmanifest'])));

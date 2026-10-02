@@ -1,22 +1,24 @@
 import { useEffect, useState } from 'react';
 import { initSession, login, useMeta } from './lib/store';
 import { today, type ISODate } from './lib/date';
+import { MOTTO } from './data/plan';
 import { Today } from './views/Today';
 import { Workout } from './views/Workout';
 import { Progress } from './views/Progress';
 import { Growth } from './views/Growth';
 import { Plan } from './views/Plan';
 import { TimerPill } from './components/Timer';
-import { IconBook, IconBriefcase, IconChart, IconDumbbell, IconToday } from './components/Icons';
+import { Laurel } from './components/Ornaments';
+import { IconBook, IconColumn, IconScroll, IconSun, IconTorch } from './components/Icons';
 
 export type Tab = 'today' | 'workout' | 'progress' | 'growth' | 'plan';
 
-const TABS: { id: Tab; label: string; Icon: typeof IconToday }[] = [
-  { id: 'today', label: 'Сегодня', Icon: IconToday },
-  { id: 'workout', label: 'Тренировка', Icon: IconDumbbell },
-  { id: 'progress', label: 'Прогресс', Icon: IconChart },
-  { id: 'growth', label: 'Развитие', Icon: IconBriefcase },
-  { id: 'plan', label: 'План', Icon: IconBook },
+const TABS: { id: Tab; label: string; numeral: string; Icon: typeof IconSun }[] = [
+  { id: 'today', label: 'День', numeral: 'I', Icon: IconSun },
+  { id: 'workout', label: 'Тренировка', numeral: 'II', Icon: IconTorch },
+  { id: 'progress', label: 'Летопись', numeral: 'III', Icon: IconScroll },
+  { id: 'growth', label: 'Путь', numeral: 'IV', Icon: IconBook },
+  { id: 'plan', label: 'Кодекс', numeral: 'V', Icon: IconColumn },
 ];
 
 const readHash = (): Tab => {
@@ -59,37 +61,44 @@ export function App() {
 
   if (meta.auth === 'required') return <Login />;
 
-  const sync = (
-    <span className={`sync-dot ${meta.auth === 'local' ? 'local' : meta.status}`} role="status"
-      title={meta.auth === 'local' ? 'Только на этом устройстве' : meta.status === 'idle' ? 'Синхронизировано' : meta.status === 'syncing' ? 'Синхронизация…' : 'Нет связи с сервером'}
-      style={{ margin: '0 12px 0 4px' }} />
-  );
+  // Sync state is shown only when something is wrong.
+  const sync =
+    meta.auth === 'local' || meta.status === 'offline' ? <span className="sync" role="status">офлайн</span>
+    : meta.status === 'error' ? <span className="sync" role="status">нет связи</span>
+    : null;
 
   return (
     <div className="app">
       <div className="backdrop" />
-      <nav className="sidebar glass" aria-label="Разделы">
-        <div className="brand"><span className="brand-mark">90</span>90 HARD</div>
-        {TABS.map(({ id, label, Icon }) => (
-          <button key={id} className="side-link" aria-current={tab === id ? 'page' : undefined} onClick={() => go(id)}>
-            <Icon /> {label}
+      <nav className="sidebar" aria-label="Разделы">
+        <div className="brand">
+          <Laurel lit={9}><span className="roman">XC</span></Laurel>
+          <div className="brand-name">90 HARD</div>
+          <div className="brand-sub">ἀρετή</div>
+        </div>
+        {TABS.map(({ id, label, numeral }) => (
+          <button key={id} className="side-item" aria-current={tab === id ? 'page' : undefined} onClick={() => go(id)}>
+            <i>{numeral}</i><span>{label}</span>
           </button>
         ))}
-        <div className="side-foot">Дисциплина — это выполнять план тогда, когда не хочется.</div>
+        <div className="side-foot">
+          <div className="meander" />
+          <p>{MOTTO}</p>
+        </div>
       </nav>
 
       <main className="main">
-        {tab === 'today' && <Today date={date} setDate={setDate} go={go} header={sync} />}
-        {tab === 'workout' && <Workout key={date} date={date} header={sync} />}
-        {tab === 'progress' && <Progress openDate={openDate} go={go} header={sync} />}
-        {tab === 'growth' && <Growth header={sync} />}
-        {tab === 'plan' && <Plan header={sync} />}
+        {tab === 'today' && <Today date={date} setDate={setDate} go={go} sync={sync} />}
+        {tab === 'workout' && <Workout key={date} date={date} sync={sync} />}
+        {tab === 'progress' && <Progress openDate={openDate} sync={sync} />}
+        {tab === 'growth' && <Growth sync={sync} />}
+        {tab === 'plan' && <Plan sync={sync} />}
       </main>
 
-      <nav className="tabbar glass" aria-label="Разделы">
+      <nav className="nav-bottom" aria-label="Разделы">
         {TABS.map(({ id, label, Icon }) => (
-          <button key={id} className="tab" aria-current={tab === id ? 'page' : undefined} onClick={() => go(id)}>
-            <Icon /> {label}
+          <button key={id} className="nav-item" aria-current={tab === id ? 'page' : undefined} onClick={() => go(id)}>
+            <Icon /><span>{label}</span>
           </button>
         ))}
       </nav>
@@ -111,15 +120,17 @@ function Login() {
   return (
     <div className="login">
       <div className="backdrop" />
-      <form className="login-card glass" onSubmit={submit}>
-        <div className="login-mark">90</div>
+      <form onSubmit={submit}>
+        <Laurel lit={9}><span className="roman">XC</span></Laurel>
         <div>
-          <h1 style={{ font: '800 26px/1.1 var(--font-display)', letterSpacing: '-0.03em' }}>90 HARD</h1>
-          <p className="muted small" style={{ marginTop: 6 }}>Введи пароль, чтобы продолжить</p>
+          <h1>90 HARD</h1>
+          <p className="epigraph" style={{ marginTop: 12 }}>{MOTTO}</p>
         </div>
-        <input className="input" type="password" autoComplete="current-password" placeholder="Пароль" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
+        <label className="field">
+          <input type="password" autoComplete="current-password" placeholder="пароль" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus aria-label="Пароль" />
+        </label>
         {err && <p className="err">{err}</p>}
-        <button className="btn primary block" disabled={busy || !pw}>Войти</button>
+        <button className="btn gold block" disabled={busy || !pw}>Войти</button>
       </form>
     </div>
   );

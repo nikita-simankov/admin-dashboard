@@ -14,12 +14,21 @@ function subscribe(fn: (now: number) => void) {
   if (!raf) raf = requestAnimationFrame(tick);
   return () => void subs.delete(fn);
 }
+/** Greek-key band used as the floor, like the base of a painted vase. */
+function meander(x0: number, x1: number, y: number): string {
+  const h = 6, w = 7;
+  let d = `M${x0} ${y}H${x1}M${x0} ${y + h}H${x1}`;
+  for (let x = Math.floor(x0 / w) * w; x < x1; x += w) {
+    d += `M${x + 1} ${y + h}V${y + 1.3}H${x + 6}V${y + h - 1.4}H${x + 3.2}V${y + 2.7}H${x + 4.6}`;
+  }
+  return d;
+}
 const reducedMotion = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function PropShape({ p, box }: { p: Prop; box: Box }) {
   switch (p.k) {
     case 'floor':
-      return <line className="anim-floor" x1={box.x} y1={FLOOR + 1} x2={box.x + box.w} y2={FLOOR + 1} />;
+      return <path className="anim-band" d={meander(box.x, box.x + box.w, FLOOR + 1.5)} />;
     case 'bar':
       return <g className="anim-prop"><line x1={p.x} y1={box.y} x2={p.x} y2={p.y} /><circle cx={p.x} cy={p.y} r={3.2} /></g>;
     case 'lowbar':
